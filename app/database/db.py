@@ -121,3 +121,41 @@ def get_results_by_run(run_id: str):
     rows = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+def update_judge_scores(result_id: int, score: float, reasoning: str):
+    """
+    Updates an existing benchmark result row with judge scores.
+    Called AFTER the judge LLM has scored a response.
+
+    result_id = the specific row in benchmark_results to update
+    score     = number from 1.0 to 10.0
+    reasoning = why the judge gave that score
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE benchmark_results
+        SET judge_score = ?, judge_reasoning = ?
+        WHERE id = ?
+    """, (score, reasoning, result_id))
+    # UPDATE changes existing rows — unlike INSERT which adds new ones
+    # SET says which columns to change
+    # WHERE id = ? means only update THIS specific row, not all rows
+    conn.commit()
+    conn.close()
+
+def get_results_by_run(run_id: str):
+    """
+    Returns all model responses for one specific run.
+    We already wrote this — just confirming it exists.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM benchmark_results
+        WHERE run_id = ?
+        ORDER BY latency_seconds ASC
+    """, (run_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]

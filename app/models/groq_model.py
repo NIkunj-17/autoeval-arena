@@ -11,7 +11,11 @@ class GroqModel(BaseModel):
         super().__init__(model_name)
         self.client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-    def generate(self, prompt: str, system_prompt: str = None) -> ModelResponse:
+    def generate(self, prompt: str, system_prompt: str = None, temperature: float = 0.7) -> ModelResponse:
+        # temperature parameter added here
+        # default 0.7 = normal creative responses for contestants
+        # 0.0 = fully deterministic, used for judge calls only
+        
         messages = []
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -21,7 +25,8 @@ class GroqModel(BaseModel):
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
-            max_tokens=1024
+            max_tokens=2048,
+            temperature=temperature  # now passed through to API
         )
         latency = round(time.time() - start, 3)
 
