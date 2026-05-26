@@ -1,3 +1,12 @@
+---
+title: AutoEval Arena
+emoji: 🏆
+colorFrom: purple
+colorTo: blue
+sdk: docker
+pinned: false
+---
+
 # 🏆 AutoEval Arena
 
 An end-to-end LLM evaluation platform that benchmarks multiple AI models using 
