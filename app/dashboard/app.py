@@ -9,8 +9,7 @@ import os
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
-from app.database.db import init_db, get_all_results, get_results_by_run
+from app.database.db import init_db, get_all_results, get_results_by_run, get_elo_ratings, get_elo_history, init_elo_table
 from app.runner.prompt_runner import run_benchmark
 from app.evaluator.judge import judge_run_stable
 
@@ -122,10 +121,10 @@ with st.sidebar:
     # Navigation — st.radio creates a radio button group
     # The selected option controls what the main panel shows
     page = st.radio(
-        "Navigate",
-        ["🏆 Leaderboard", "🏁 Run Benchmark", "📊 Analytics", "📋 History"],
-        label_visibility="collapsed"
-    )
+    "Navigate",
+    ["🏆 Leaderboard", "⚡ ELO Ratings", "🏁 Run Benchmark", "📊 Analytics", "📋 History"],
+    label_visibility="collapsed"
+    )   
     
     st.divider()
     st.caption("Built with Groq + Streamlit")
@@ -495,3 +494,120 @@ elif page == "📋 History":
                                 height=300
                             )
                             st.plotly_chart(fig, use_container_width=True)
+                      
+
+# ─────────────────────────────────────────────
+# PAGE 5 — ELO RATINGS
+# ─────────────────────────────────────────────  
+
+elif page == "⚡ ELO Ratings":
+    st.title("⚡ ELO Ratings")
+    st.caption("Chess-style rating system — updated after every benchmark run")
+
+    init_elo_table()
+    elo_data = get_elo_ratings()
+
+    if not elo_data:
+        st.info("No ELO data yet. Run a benchmark with judging to generate ELO ratings.")
+    else:
+        elo_df = pd.DataFrame(elo_data)
+
+        # ── Top model highlight ──
+        top = elo_df.iloc[0]
+        st.success(f"👑 Current #1: **{top['model_name']}** with **{top['elo_score']:.1f} ELO**")
+
+        st.divider()
+
+        # ── ELO scores bar chart ──
+        st.subheader("ELO Ratings")
+        fig_elo = px.bar(
+            elo_df,
+            x='model_name',
+            y='elo_score',
+            color='model_name',
+            title='Current ELO Ratings (baseline = 1000)',
+            labels={'model_name': 'Model', 'elo_score': 'ELO Score'},
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        # Add baseline reference line at 1000
+        fig_elo.add_hline(
+            y=1000,
+            line_dash="dash",
+            line_color="gray",
+            annotation_text="Baseline (1000)"
+        )
+        fig_elo.update_layout(showlegend=False, plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_elo, use_container_width=True)
+
+        # ── Win/Loss/Tie record ──
+        st.subheader("Win / Loss / Tie Record")
+        record_df = elo_df[['model_name', 'wins', 'losses', 'ties', 'total_matches', 'elo_score']].copy()
+        record_df['win_rate'] = (record_df['wins'] / record_df['total_matches'] * 100).round(1)
+        record_df = record_df.rename(columns={
+            'model_name': 'Model',
+            'wins': 'Wins',
+            'losses': 'Losses',
+            'ties': 'Ties',
+            'total_matches': 'Total',
+            'elo_score': 'ELO',
+            'win_rate': 'Win Rate %'
+        })
+        st.dataframe(record_df, use_container_width=True, hide_index=True)
+
+        # ── ELO history ──
+        st.subheader("Recent Match History")
+        history = get_elo_history(limit=20)
+        if history:
+            history_df = pd.DataFrame(history)
+            history_df['result'] = history_df['winner'].apply(
+                lambda w: 'Tie' if w is None else f"{w} won"
+            )
+            display_history = history_df[[
+                'model_a', 'model_b', 'result',
+                'elo_change_a', 'elo_change_b',
+                'new_elo_a', 'new_elo_b', 'created_at'
+            ]].rename(columns={
+                'model_a': 'Model A',
+                'model_b': 'Model B',
+                'result': 'Result',
+                'elo_change_a': 'Change A',
+                'elo_change_b': 'Change B',
+                'new_elo_a': 'New ELO A',
+                'new_elo_b': 'New ELO B',
+                'created_at': 'Time'
+            })
+            st.dataframe(display_history, use_container_width=True, hide_index=True)
+
+        # # ── ELO over time line chart ──
+        # if history:
+        #     st.subheader("ELO Over Time")
+        #     history_df['created_at'] = pd.to_datetime(history_df['created_at'])
+
+        #     # Build a time series for each model
+        #     # We need to melt the history into model/elo pairs per timestamp
+        #     time_data = []
+        #     for _, row in history_df.iterrows():
+        #         time_data.append({
+        #             'time': row['created_at'],
+        #             'model': row['model_a'],
+        #             'elo': row['new_elo_a']
+        #         })
+        #         time_data.append({
+        #             'time': row['created_at'],
+        #             'model': row['model_b'],
+        #             'elo': row['new_elo_b']
+        #         })
+
+        #     time_df = pd.DataFrame(time_data).sort_values('time')
+        #     fig_time = px.line(
+        #         time_df,
+        #         x='time',
+        #         y='elo',
+        #         color='model',
+        #         title='ELO Rating Over Time',
+        #         markers=True,
+        #         labels={'time': 'Time', 'elo': 'ELO Score', 'model': 'Model'}
+        #     )
+        #     fig_time.add_hline(y=1000, line_dash="dash", line_color="gray")
+        #     fig_time.update_layout(plot_bgcolor='rgba(0,0,0,0)')
+        #     st.plotly_chart(fig_time, use_container_width=True)

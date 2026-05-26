@@ -2,9 +2,10 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.database.db import init_db, get_all_results
+from app.database.db import init_db, init_elo_table
 from app.runner.prompt_runner import run_benchmark, display_results
 from app.evaluator.judge import judge_run
+from app.elo.elo_system import update_elo_for_run
 import asyncio
 
 async def main():
@@ -60,6 +61,25 @@ async def main():
     
     # Use stable judging instead of single run
     final_scores = judge_run_stable(run_id, num_runs=3)
+
+async def main():
+    # Initialize both tables
+    init_db()
+    init_elo_table()
+
+    result = await run_benchmark(
+        prompt="What is the difference between a list and a tuple in Python? When should you use each?",
+        system_prompt="You are a helpful Python expert. Be clear and concise."
+    )
+    display_results(result)
+
+    run_id = result['run_id']
+
+    print(f"\nRunning stable ensemble judge (3 runs averaged)...")
+    judge_run_stable(run_id, num_runs=3)
+
+    print(f"\nUpdating ELO ratings...")
+    update_elo_for_run(run_id)
 
 if __name__ == "__main__":
     asyncio.run(main())
