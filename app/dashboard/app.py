@@ -34,11 +34,12 @@ st.markdown("""
         margin-bottom: 1.5rem;
     }
     .step-card {
-        border: 1px solid #e0e0e0;
+        border: 1px solid var(--color-border-secondary);
         border-radius: 12px;
         padding: 1rem 1.25rem;
         margin-bottom: 0.75rem;
-        background: white;
+        background: var(--color-background-secondary);
+        color: var(--color-text-primary);
     }
     .step-number {
         background: #667eea;
@@ -54,11 +55,12 @@ st.markdown("""
         margin-right: 10px;
     }
     .stat-box {
-        background: #f8f9ff;
+        background: var(--color-background-secondary);
         border-radius: 10px;
         padding: 1rem;
         text-align: center;
-        border: 1px solid #e8eaff;
+        border: 1px solid var(--color-border-tertiary);
+        color: var(--color-text-primary);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -247,22 +249,6 @@ if page == "🏠 Home":
 
     st.divider()
 
-    # Sample prompts to try
-    st.subheader("💡 Try these prompts")
-    sample_prompts = [
-        "Explain how gradient descent works with a Python example",
-        "What is the difference between SQL and NoSQL databases?",
-        "Write a binary search algorithm and explain its time complexity",
-        "Explain the CAP theorem in distributed systems",
-        "What is the transformer architecture in deep learning?",
-    ]
-
-    cols = st.columns(2)
-    for i, prompt in enumerate(sample_prompts):
-        with cols[i % 2]:
-            if st.button(f"▶ {prompt[:45]}...", key=f"sample_{i}", use_container_width=True):
-                st.session_state['quick_prompt'] = prompt
-                st.info(f"Go to **🏁 Run Benchmark** in the sidebar to run this prompt!")
 
 # ────────────────────────────────────────────
 # PAGE: LEADERBOARD
@@ -478,7 +464,7 @@ elif page == "🏁 Run Benchmark":
 
     col1, col2 = st.columns(2)
     with col1:
-        run_judge = st.checkbox("✅ Auto-judge responses", value=True,
+        run_judge = st.checkbox("Auto-judge responses", value=True,
                                help="Scores each response on accuracy, clarity, completeness")
     with col2:
         num_judge_runs = st.slider("Judge passes (more = more consistent)",
