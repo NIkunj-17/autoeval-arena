@@ -121,7 +121,7 @@ with st.sidebar:
     st.divider()
     st.caption("Judge: GPT-OSS 120B")
     st.caption("Models: Llama, Qwen, Scout")
-    st.caption("[View on GitHub](https://github.com)")
+    st.caption("[View on GitHub](https://github.com/NIkunj-17/autoeval-arena)")
 
 df = load_data()
 
