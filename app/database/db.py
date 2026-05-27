@@ -4,18 +4,7 @@ from datetime import datetime
 
 # This is the path where our SQLite database file will be created
 # It lives in the project root as autoeval.db
-DB_PATH = os.path.join(
-    os.path.dirname(
-        os.path.dirname(
-            os.path.dirname(
-                os.path.abspath(__file__)
-            )
-        )
-    ),
-    "autoeval.db"
-)
-
-print(f"DB_PATH resolved to: {DB_PATH}")
+DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "autoeval.db")
 
 def get_connection():
     """
