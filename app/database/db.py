@@ -284,18 +284,25 @@ def save_elo_match(run_id: str, model_a: str, model_b: str,
     conn.close()
     
 def seed_from_json(json_path: str = None):
-    """
-    Loads seed data from JSON file into SQLite.
-    Called on startup in HuggingFace environment.
-    Only seeds if database is empty — never overwrites existing data.
-    """
     if json_path is None:
-        # Find seed file relative to project root
+        # Look for seed file in app folder
         root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        json_path = os.path.join(root, "data", "seed_data.json")
+        # Try multiple locations
+        possible_paths = [
+            os.path.join(root, "app", "seed_data.json"),
+            os.path.join(root, "data", "seed_data.json"),
+            os.path.join("/app", "seed_data.json"),
+            os.path.join("/app", "app", "seed_data.json"),
+        ]
+        json_path = None
+        for path in possible_paths:
+            if os.path.exists(path):
+                json_path = path
+                print(f"Found seed file at: {path}")
+                break
 
-    if not os.path.exists(json_path):
-        print(f"No seed file found at {json_path}")
+    if not json_path:
+        print("No seed file found in any location")
         return
 
     # Check if db already has data — don't seed if it does
