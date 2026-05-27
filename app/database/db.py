@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+import json
 
 # This is the path where our SQLite database file will be created
 # It lives in the project root as autoeval.db
@@ -281,3 +282,102 @@ def save_elo_match(run_id: str, model_a: str, model_b: str,
     """, (run_id, model_a, model_b, winner, elo_change_a, elo_change_b, new_elo_a, new_elo_b))
     conn.commit()
     conn.close()
+    
+def seed_from_json(json_path: str = None):
+    """
+    Loads seed data from JSON file into SQLite.
+    Called on startup in HuggingFace environment.
+    Only seeds if database is empty — never overwrites existing data.
+    """
+    if json_path is None:
+        # Find seed file relative to project root
+        root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        json_path = os.path.join(root, "data", "seed_data.json")
+
+    if not os.path.exists(json_path):
+        print(f"No seed file found at {json_path}")
+        return
+
+    # Check if db already has data — don't seed if it does
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM benchmark_results")
+    count = cursor.fetchone()[0]
+    conn.close()
+
+    if count > 0:
+        print(f"Database already has {count} records — skipping seed")
+        return
+
+    print(f"Database empty — seeding from {json_path}")
+
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    import json as json_module
+
+    # Seed benchmark results
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    for r in data.get("benchmark_results", []):
+        try:
+            cursor.execute("""
+                INSERT OR IGNORE INTO benchmark_results
+                (id, run_id, prompt, model_name, output, input_tokens,
+                 output_tokens, latency_seconds, cost_usd,
+                 judge_score, judge_reasoning, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r.get('id'), r.get('run_id'), r.get('prompt'),
+                r.get('model_name'), r.get('output'),
+                r.get('input_tokens'), r.get('output_tokens'),
+                r.get('latency_seconds'), r.get('cost_usd', 0.0),
+                r.get('judge_score'), r.get('judge_reasoning'),
+                r.get('created_at')
+            ))
+        except Exception as e:
+            print(f"Error seeding result: {e}")
+
+    # Seed ELO ratings
+    for r in data.get("elo_ratings", []):
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO elo_ratings
+                (model_name, elo_score, wins, losses, ties,
+                 total_matches, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r.get('model_name'), r.get('elo_score', 1000.0),
+                r.get('wins', 0), r.get('losses', 0),
+                r.get('ties', 0), r.get('total_matches', 0),
+                r.get('last_updated')
+            ))
+        except Exception as e:
+            print(f"Error seeding ELO: {e}")
+
+    # Seed ELO history
+    for r in data.get("elo_history", []):
+        try:
+            cursor.execute("""
+                INSERT OR IGNORE INTO elo_history
+                (id, run_id, model_a, model_b, winner,
+                 elo_change_a, elo_change_b, new_elo_a,
+                 new_elo_b, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                r.get('id'), r.get('run_id'),
+                r.get('model_a'), r.get('model_b'),
+                r.get('winner'), r.get('elo_change_a'),
+                r.get('elo_change_b'), r.get('new_elo_a'),
+                r.get('new_elo_b'), r.get('created_at')
+            ))
+        except Exception as e:
+            print(f"Error seeding history: {e}")
+
+    conn.commit()
+    conn.close()
+    print(f"Seeding complete!")
+    print(f"  {len(data.get('benchmark_results', []))} benchmark results")
+    print(f"  {len(data.get('elo_ratings', []))} ELO ratings")
+    print(f"  {len(data.get('elo_history', []))} ELO history records")

@@ -68,6 +68,12 @@ st.markdown("""
 def load_data():
     init_db()
     init_elo_table()
+    
+    # Seed from JSON if database is empty
+    # This runs on HuggingFace where db starts empty every restart
+    from app.database.db import seed_from_json
+    seed_from_json()
+    
     results = get_all_results()
     if not results:
         return pd.DataFrame()
